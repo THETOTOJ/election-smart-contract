@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Ensure proper flex layout */
+.candidate-container {
+  display: flex;
+  flex-direction: row;
+  gap: 1.5rem;
+  justify-content: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+/* Force images to load */
+img {
+  image-rendering: auto;
+  -webkit-image-smoothing: true;
+  image-smoothing: smooth;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .candidate-container {
+    flex-direction: column;
+    align-items: center;
+  }
+}
