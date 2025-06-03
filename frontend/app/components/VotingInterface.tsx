@@ -7,6 +7,7 @@ import { Election, ElectionResults } from '@/lib/types';
 import WalletConnection from './WalletConnection';
 import ElectionResultsComponent from './ElectionResults';
 import CountdownTimer from './CountdownTimer';
+import Link from 'next/link';
 
 export default function VotingInterface() {
   const [account, setAccount] = useState<string | null>(null);
@@ -21,7 +22,7 @@ export default function VotingInterface() {
 
   const ensureCorrectNetwork = async () => {
     if (!window.ethereum) return;
-    
+
     try {
       const chainId = await window.ethereum.request({ method: 'eth_chainId' });
       if (chainId !== '0xaa36a7') { // Not Sepolia
@@ -34,7 +35,7 @@ export default function VotingInterface() {
     } catch (switchError: unknown) {
       console.error('Network switch failed:', switchError);
       const errorObj = switchError as { code?: number };
-      
+
       if (errorObj.code === 4902) {
         // Chain doesn't exist, add it
         try {
@@ -76,7 +77,7 @@ export default function VotingInterface() {
     try {
       // Ensure correct network
       await ensureCorrectNetwork();
-      
+
       // Request account access
       await window.ethereum.request({ method: 'eth_requestAccounts' });
       const provider = new ethers.BrowserProvider(window.ethereum);
@@ -123,7 +124,7 @@ export default function VotingInterface() {
   const loadUserData = async (contract: Contract, address: string) => {
     try {
       console.log('🔍 Loading user data for:', address);
-      
+
       // Check registration status
       let isRegistered = false;
       try {
@@ -133,7 +134,7 @@ export default function VotingInterface() {
         console.error('❌ Registration check failed:', registrationError);
         throw new Error('Failed to check registration status. Contract may not be working properly.');
       }
-      
+
       setIsRegistered(isRegistered);
 
       // Check voting status
@@ -146,9 +147,9 @@ export default function VotingInterface() {
         // Don't throw here, just log the warning
         console.warn('Could not check voting status, but continuing...');
       }
-      
+
       setHasVoted(hasVoted);
-      
+
     } catch (userDataError) {
       console.error('❌ Error in loadUserData:', userDataError);
       const errorMessage = userDataError instanceof Error ? userDataError.message : 'Failed to load user data';
@@ -159,7 +160,7 @@ export default function VotingInterface() {
   const loadElectionData = async (contract: Contract) => {
     try {
       console.log('📊 Loading election data...');
-      
+
       // First check if any elections exist
       let electionCounter;
       try {
@@ -169,18 +170,18 @@ export default function VotingInterface() {
         console.error('Failed to get election count:', counterError);
         throw new Error('Failed to get election count. Contract may not be deployed correctly.');
       }
-      
+
       if (electionCounter === BigInt(0)) {
         setError('No elections found. The contract admin needs to create an election first.');
         return;
       }
-      
+
       // Check if the specific election exists
       if (ELECTION_ID > electionCounter) {
         setError(`Election ${ELECTION_ID} doesn't exist. Only ${electionCounter} elections found.`);
         return;
       }
-      
+
       // Load election data
       console.log(`Loading election ${ELECTION_ID}...`);
       let electionData;
@@ -190,7 +191,7 @@ export default function VotingInterface() {
         console.error('Failed to load election:', electionError);
         throw new Error(`Failed to load election ${ELECTION_ID}. It may not exist.`);
       }
-      
+
       // Updated election structure with runoff fields
       const election = {
         id: electionData[0],
@@ -204,7 +205,7 @@ export default function VotingInterface() {
         runoffElectionId: electionData[8] || BigInt(0),
         requiresRunoff: electionData[9] || false
       };
-      
+
       console.log('✅ Election loaded:', election);
       setElection(election);
 
@@ -217,7 +218,7 @@ export default function VotingInterface() {
         console.error('Failed to load results:', resultsError);
         throw new Error('Failed to load election results.');
       }
-      
+
       // Updated results structure with runoff fields
       const results = {
         candidateIds: resultsData[0],
@@ -225,16 +226,16 @@ export default function VotingInterface() {
         voteCounts: resultsData[2],
         advancedToRunoff: resultsData[3] || resultsData[0].map(() => false) // Default to false array if not available
       };
-      
+
       console.log('✅ Results loaded:', results);
       setResults(results);
-      
+
       // Clear any previous errors if we got this far
       setError(null);
-      
+
     } catch (electionDataError) {
       console.error('❌ Error loading election data:', electionDataError);
-      
+
       let errorMessage = 'Failed to load election data';
       if (electionDataError instanceof Error) {
         if (electionDataError.message.includes('could not decode result data')) {
@@ -245,7 +246,7 @@ export default function VotingInterface() {
           errorMessage = electionDataError.message;
         }
       }
-      
+
       setError(errorMessage);
     }
   };
@@ -261,7 +262,7 @@ export default function VotingInterface() {
 
     try {
       console.log('📝 Registering to vote...');
-      
+
       // Check if already registered first
       if (account) {
         const alreadyRegistered = await contract.registeredVoters(account);
@@ -276,19 +277,19 @@ export default function VotingInterface() {
       // Send registration transaction
       const tx = await contract.registerToVote();
       console.log('Registration transaction sent:', tx.hash);
-      
+
       // Wait for confirmation
       const receipt = await tx.wait();
       console.log('✅ Registration confirmed:', receipt);
-      
+
       setIsRegistered(true);
       setError(null);
-      
+
       // Refresh user data after successful registration
       if (account) {
         await loadUserData(contract, account);
       }
-      
+
     } catch (registrationError) {
       console.error('❌ Registration error:', registrationError);
       const errorMessage = registrationError instanceof Error ? registrationError.message : 'Failed to register to vote';
@@ -309,26 +310,26 @@ export default function VotingInterface() {
 
     try {
       console.log('🗳️ Casting vote for candidate:', candidateId.toString());
-      
+
       // Send vote transaction
       const tx = await contract.vote(ELECTION_ID, candidateId);
       console.log('Vote transaction sent:', tx.hash);
-      
+
       // Wait for confirmation
       const receipt = await tx.wait();
       console.log('✅ Vote confirmed:', receipt);
 
       setHasVoted(true);
-      
+
       // Refresh election data to show updated results
       await loadElectionData(contract);
-      
+
       setError(null);
-      
+
     } catch (voteError) {
       console.error('❌ Voting error:', voteError);
       let errorMessage = 'Failed to cast vote';
-      
+
       if (voteError instanceof Error) {
         if (voteError.message.includes('You have already voted')) {
           errorMessage = 'You have already voted in this election';
@@ -340,7 +341,7 @@ export default function VotingInterface() {
           errorMessage = voteError.message;
         }
       }
-      
+
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -366,7 +367,7 @@ export default function VotingInterface() {
         setIsLoading(true);
         const admin = await contract.admin();
         const electionCount = await contract.electionCounter();
-        
+
         alert(`Contract is working!\nAdmin: ${admin}\nElections: ${electionCount.toString()}`);
         console.log('✅ Contract test successful');
       } catch (testError) {
@@ -386,10 +387,10 @@ export default function VotingInterface() {
     const autoConnect = async () => {
       if (typeof window !== 'undefined' && window.ethereum) {
         try {
-          const accounts = await window.ethereum.request({ 
-            method: 'eth_accounts' 
+          const accounts = await window.ethereum.request({
+            method: 'eth_accounts'
           }) as string[];
-          
+
           if (accounts.length > 0) {
             await connectWallet();
           }
@@ -403,18 +404,17 @@ export default function VotingInterface() {
   }, [connectWallet]);
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-green-100 via-green-50 to-emerald-100 py-8">
       <div className="max-w-4xl mx-auto px-4 space-y-8">
-        
+
         {/* Debug Toggle Button - Fixed Position */}
         <div className="fixed top-4 left-4 z-50">
           <button
             onClick={() => setShowDebug(!showDebug)}
-            className={`px-3 py-2 rounded-lg text-sm font-medium transition-all shadow-lg ${
-              showDebug 
-                ? 'bg-blue-600 text-white hover:bg-blue-700' 
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-all shadow-lg ${showDebug
+                ? 'bg-green-700 text-white hover:bg-green-800'
                 : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-            }`}
+              }`}
           >
             🔧 {showDebug ? 'Hide Debug' : 'Show Debug'}
           </button>
@@ -422,20 +422,20 @@ export default function VotingInterface() {
 
         {/* Collapsible Debug Info Panel */}
         {showDebug && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm mt-16">
+          <div className="bg-green-50 border border-green-300 rounded-lg p-4 text-sm mt-16">
             <div className="flex justify-between items-start">
               <div>
-                <h3 className="font-semibold text-blue-800 mb-2">🔧 Debug Information</h3>
+                <h3 className="font-semibold text-green-800 mb-2">🔧 Debug Information</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <p className="text-blue-700"><span className="font-medium">Contract:</span> {CONTRACT_ADDRESS}</p>
-                    <p className="text-blue-700"><span className="font-medium">Network:</span> Sepolia Testnet</p>
-                    <p className="text-blue-700"><span className="font-medium">Account:</span> {account || 'Not connected'}</p>
+                    <p className="text-green-700"><span className="font-medium">Contract:</span> {CONTRACT_ADDRESS}</p>
+                    <p className="text-green-700"><span className="font-medium">Network:</span> Sepolia Testnet</p>
+                    <p className="text-green-700"><span className="font-medium">Account:</span> {account || 'Not connected'}</p>
                   </div>
                   <div>
-                    <p className="text-blue-700"><span className="font-medium">Registered:</span> {isRegistered ? 'Yes' : 'No'}</p>
-                    <p className="text-blue-700"><span className="font-medium">Has Voted:</span> {hasVoted ? 'Yes' : 'No'}</p>
-                    <p className="text-blue-700"><span className="font-medium">Contract Connected:</span> {contract ? 'Yes' : 'No'}</p>
+                    <p className="text-green-700"><span className="font-medium">Registered:</span> {isRegistered ? 'Yes' : 'No'}</p>
+                    <p className="text-green-700"><span className="font-medium">Has Voted:</span> {hasVoted ? 'Yes' : 'No'}</p>
+                    <p className="text-green-700"><span className="font-medium">Contract Connected:</span> {contract ? 'Yes' : 'No'}</p>
                   </div>
                 </div>
               </div>
@@ -443,13 +443,13 @@ export default function VotingInterface() {
                 <button
                   onClick={testContract}
                   disabled={!contract || isLoading}
-                  className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700 disabled:opacity-50"
+                  className="bg-green-700 text-white px-3 py-1 rounded text-xs hover:bg-green-800 disabled:opacity-50"
                 >
                   Test Contract
                 </button>
                 <button
                   onClick={() => setShowDebug(false)}
-                  className="text-blue-600 hover:text-blue-800 text-lg"
+                  className="text-green-700 hover:text-green-900 text-lg"
                 >
                   ✕
                 </button>
@@ -458,30 +458,55 @@ export default function VotingInterface() {
           </div>
         )}
 
-        {/* Header */}
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            🗳️ Decentralized Voting System
-          </h1>
-          <p className="text-gray-600">
-            Secure, transparent, and immutable voting on the blockchain
-          </p>
+        {/* Paddy's Pub Header */}
+        <div className="text-center bg-gradient-to-r from-green-800 via-green-700 to-green-600 text-white rounded-xl p-8 shadow-2xl border-4 border-green-400">
+          <div className="mb-6">
+            <div className="text-6xl mb-2">🍺</div>
+            <h1 className="text-5xl font-bold mb-2 text-shadow-lg">
+              PADDY'S PUB
+            </h1>
+            <div className="text-2xl font-semibold mb-6 text-green-200">
+              ☘️ OWNER ELECTION 2024 ☘️
+            </div>
+          </div>
+
+          {/* Episode Title Card Style */}
+          <div className="bg-black text-white p-6 rounded-lg border-4 border-white shadow-2xl">
+            <div className="text-center">
+              <div className="text-xs font-bold text-gray-300 mb-2 tracking-wider">
+                IT'S ALWAYS SUNNY IN PHILADELPHIA
+              </div>
+              <h2 className="text-3xl font-bold mb-2 tracking-wide">
+                <Link href="https://iasip.app/tHRicN_N20-SAhC7HfvKsA" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
+                  "The Gang Runs for Pub Owner"
+                </Link>
+              </h2>
+              <div className="text-sm text-gray-300 italic">
+                Season 29 • Episode 13
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Error Display */}
+
+
+        {/* Error Display - Themed */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <div className="text-red-600 text-xl mr-3">⚠️</div>
+                <div className="text-red-600 text-2xl mr-3">🚨</div>
                 <div>
-                  <h3 className="text-red-800 font-semibold">Error</h3>
+                  <h3 className="text-red-800 font-bold">The Gang Encounters an Error!</h3>
                   <p className="text-red-700">{error}</p>
+                  <p className="text-red-600 text-sm mt-1 italic">
+                    "Wildcard, bitches!" - This error, probably
+                  </p>
                 </div>
               </div>
               <button
                 onClick={() => setError(null)}
-                className="text-red-600 hover:text-red-800"
+                className="text-red-600 hover:text-red-800 text-xl font-bold"
               >
                 ✕
               </button>
@@ -489,12 +514,17 @@ export default function VotingInterface() {
           </div>
         )}
 
-        {/* Loading Indicator */}
+        {/* Loading Indicator - Themed */}
         {isLoading && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="bg-green-50 border-2 border-green-300 rounded-lg p-4">
             <div className="flex items-center">
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-yellow-600 mr-3"></div>
-              <p className="text-yellow-700">Processing transaction...</p>
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 mr-3">🍺</div>
+              <div>
+                <p className="text-green-800 font-medium">Processing your vote...</p>
+                <p className="text-green-600 text-sm italic">
+                  "I'm gonna rise up, I'm gonna kick a little ass!" - Mac, probably about blockchain
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -511,52 +541,59 @@ export default function VotingInterface() {
         {/* Election Information with Countdown */}
         {account && election && (
           <div className="space-y-4">
-            {/* Election Details */}
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <h2 className="text-2xl font-semibold mb-4">{election.title}</h2>
-              <p className="text-gray-600 mb-4">{election.description}</p>
-              
+            {/* Election Details - Themed */}
+            <div className="bg-white rounded-lg shadow-lg p-6 border-2 border-green-200">
+              <div className="flex items-center mb-4">
+                <span className="text-3xl mr-3">🏆</span>
+                <h2 className="text-2xl font-bold text-green-800">Best Patty's pub owner</h2>
+              </div>
+              <p className="text-gray-700 mb-4 text-lg">{election.description}</p>
+
               {/* Runoff Information */}
               {election.isRunoff && (
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
+                <div className="bg-orange-50 border-2 border-orange-300 rounded-lg p-4 mb-4">
                   <div className="flex items-center">
-                    <span className="text-orange-600 text-lg mr-2">🔄</span>
+                    <span className="text-orange-600 text-2xl mr-3">🔄</span>
                     <div>
-                      <h4 className="font-semibold text-orange-800">Runoff Election</h4>
-                      <p className="text-sm text-orange-700">This is a runoff between the top candidates from the previous election.</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {election.requiresRunoff && election.runoffElectionId > 0 && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                  <div className="flex items-center">
-                    <span className="text-blue-600 text-lg mr-2">📊</span>
-                    <div>
-                      <h4 className="font-semibold text-blue-800">Runoff Required</h4>
-                      <p className="text-sm text-blue-700">A runoff election has been created due to a tie. Check election #{election.runoffElectionId.toString()}</p>
+                      <h4 className="font-bold text-orange-800 text-lg">RUNOFF ELECTION!</h4>
+                      <p className="text-orange-700">
+                        "The Gang Has a Tie" - This is a runoff between the top candidates!
+                      </p>
                     </div>
                   </div>
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              {election.requiresRunoff && election.runoffElectionId > 0 && (
+                <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-4 mb-4">
+                  <div className="flex items-center">
+                    <span className="text-blue-600 text-2xl mr-3">⚖️</span>
+                    <div>
+                      <h4 className="font-bold text-blue-800 text-lg">TIE DETECTED!</h4>
+                      <p className="text-blue-700">
+                        A runoff election has been created! Check election #{election.runoffElectionId.toString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm bg-green-50 p-4 rounded-lg">
                 <div>
                   <span className="font-medium text-gray-700">Election ID:</span>
-                  <p className="text-gray-600">{election.id.toString()}</p>
+                  <p className="text-gray-600 font-bold">{election.id.toString()}</p>
                 </div>
                 <div>
                   <span className="font-medium text-gray-700">Status:</span>
-                  <p className={election.finalized ? 'text-red-600' : 'text-green-600'}>
-                    {election.finalized ? 'Finalized' : 'Active'}
+                  <p className={election.finalized ? 'text-red-600 font-bold' : 'text-green-600 font-bold'}>
+                    {election.finalized ? '🔒 Finalized' : '🟢 Active'}
                   </p>
                 </div>
                 <div>
                   <button
                     onClick={refreshData}
                     disabled={isLoading}
-                    className="text-blue-600 hover:text-blue-800 font-medium disabled:opacity-50"
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium"
                   >
                     🔄 Refresh Data
                   </button>
@@ -565,7 +602,7 @@ export default function VotingInterface() {
             </div>
 
             {/* Countdown Timer */}
-            <CountdownTimer 
+            <CountdownTimer
               endTime={election.endTime}
               isActive={!election.finalized}
               isFinalized={election.finalized}
@@ -584,27 +621,40 @@ export default function VotingInterface() {
           />
         )}
 
-        {/* Help Section */}
+        {/* Help Section - Themed */}
         {account && !election && !isLoading && (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">No Election Data</h3>
-            <p className="text-gray-600 mb-4">
-              Unable to load election data. This could mean:
+          <div className="bg-white border-2 border-red-300 rounded-lg p-6 text-center">
+            <div className="text-6xl mb-4">😵</div>
+            <h3 className="text-xl font-bold text-red-800 mb-2">
+              "The Gang Can't Find the Election Data"
+            </h3>
+            <p className="text-gray-700 mb-4 text-lg">
+              Looks like Charlie might have eaten the contract data...
             </p>
-            <ul className="text-left text-gray-600 space-y-1 max-w-md mx-auto">
-              <li>• The contract is not deployed correctly</li>
-              <li>• No elections have been created yet</li>
-              <li>• You are connected to the wrong network</li>
-              <li>• The contract address is incorrect</li>
+            <ul className="text-left text-gray-600 space-y-2 max-w-md mx-auto bg-gray-50 p-4 rounded-lg">
+              <li>🔧 The contract might not be deployed correctly</li>
+              <li>📝 No elections have been created yet</li>
+              <li>🌐 You might be connected to the wrong network</li>
+              <li>📍 The contract address could be incorrect</li>
             </ul>
             <button
               onClick={connectWallet}
-              className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+              className="mt-6 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 font-bold text-lg"
             >
-              Retry Connection
+              🔄 Try Again, Jabroni!
             </button>
           </div>
         )}
+
+        {/* Footer */}
+        <div className="text-center text-gray-600 bg-white rounded-lg p-4 border border-green-200">
+          <p className="text-sm">
+            🍺 Powered by Blockchain Technology & The Gang's Questionable Decision Making 🍺
+          </p>
+          <p className="text-xs mt-1 italic">
+            "And they have to vote for me because of the implication..." - Dennis, probably
+          </p>
+        </div>
       </div>
     </div>
   );

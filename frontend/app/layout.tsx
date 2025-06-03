@@ -5,8 +5,8 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Decentralized Voting System',
-  description: 'A secure, transparent voting system built on blockchain technology',
+  title: "Paddy's Pub Vote",
+  description: 'Vote for your favorite Paddy\'s Pub owner',
 };
 
 export default function RootLayout({

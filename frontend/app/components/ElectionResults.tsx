@@ -84,10 +84,10 @@ export default function ElectionResults({
       {hasVoted && (
         <div className="bg-green-50 border-2 border-green-200 rounded-lg p-6">
           <div className="flex items-center justify-center">
-            <div className="text-green-600 text-2xl mr-3">✅</div>
+            <div className="text-green-600 text-2xl mr-3"></div>
             <div className="text-center">
-              <h2 className="text-xl font-semibold text-green-800">Vote Submitted Successfully!</h2>
-              <p className="text-green-700">Thank you for participating. View the current results below.</p>
+              <h2 className="text-xl font-semibold text-green-800">✅ Vote Submitted Successfully!✅</h2>
+              <p className="text-green-700">Grab your complementary drink from Dee at the bar</p>
             </div>
           </div>
         </div>
