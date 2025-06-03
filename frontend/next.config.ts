@@ -1,18 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
-  swcMinify: true,
+  output: 'export',
+  trailingSlash: true,
+  images: {
+    unoptimized: true
+  },
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: true
   },
   typescript: {
-    ignoreBuildErrors: true,
-  },
-  experimental: {
-    turbo: false,  // Disable turbopack to fix the module error
-  },
-  images: {
-    unoptimized: true,  // Fix image optimization issues
+    ignoreBuildErrors: true
   }
 }
 
